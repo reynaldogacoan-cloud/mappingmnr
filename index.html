@@ -36,7 +36,7 @@
 <!-- Leaflet -->
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-<!-- Turf.js (untuk polygon) -->
+<!-- Turf.js -->
 <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 
 <script>
@@ -51,7 +51,7 @@
   }).addTo(map);
 
   // =========================
-  // COLOR MP
+  // COLOR MP (AUTO)
   // =========================
   const mpColors = {};
 
@@ -94,11 +94,11 @@
           layer.bindPopup(`
             <b>${feature.properties["NAMA STORE"]}</b><br>
             SPV: ${feature.properties["NAMA SUPERVISOR M&R"]}<br>
+            Teknisi: ${feature.properties["NAMA TEKNISI"]}<br>
             MP: ${feature.properties["NAMA MP"]}
           `);
         }
       }).addTo(map);
-
 
       // =========================
       // 2. GROUP BY SPV
@@ -111,15 +111,13 @@
         spvGroups[spv].push(f);
       });
 
-
       // =========================
-      // 3. BUAT POLYGON (CONVEX HULL)
+      // 3. POLYGON SPV
       // =========================
       Object.keys(spvGroups).forEach(spv => {
 
         const features = spvGroups[spv];
-
-        if (features.length < 3) return; // minimal 3 titik
+        if (features.length < 3) return;
 
         const fc = {
           type: "FeatureCollection",
@@ -137,19 +135,60 @@
               fillColor: "#999",
               fillOpacity: 0.2
             }
-          })
-          .bindPopup("SPV: " + spv)
-          .addTo(map);
+          }).addTo(map);
         }
 
       });
 
+      // =========================
+      // 4. GROUP BY TEKNISI
+      // =========================
+      const teknisiGroups = {};
+
+      data.features.forEach(f => {
+        const teknisi = f.properties["NAMA TEKNISI"];
+        if (!teknisiGroups[teknisi]) teknisiGroups[teknisi] = [];
+        teknisiGroups[teknisi].push(f);
+      });
+
+      // =========================
+      // 5. POLYGON TEKNISI
+      // =========================
+      Object.keys(teknisiGroups).forEach(teknisi => {
+
+        const features = teknisiGroups[teknisi];
+        if (features.length < 3) return;
+
+        const fc = {
+          type: "FeatureCollection",
+          features: features
+        };
+
+        const hull = turf.convex(fc);
+
+        if (hull) {
+          L.geoJSON(hull, {
+            interactive: false,
+            style: {
+              color: "#ff6600",
+              weight: 2,
+              fillColor: "#ffcc99",
+              fillOpacity: 0.25
+            }
+          }).addTo(map);
+        }
+
+      });
 
       // =========================
       // AUTO ZOOM
       // =========================
       map.fitBounds(pointLayer.getBounds());
 
+    })
+    .catch(err => {
+      console.error(err);
+      alert("Gagal load data, cek URL API kamu");
     });
 
 </script>
