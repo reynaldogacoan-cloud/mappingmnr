@@ -3,20 +3,19 @@
 <head>
   <title>Mapping MNR</title>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.control.layers.tree/L.Control.Layers.Tree.css"/>
 
   <style>
-    body { margin: 0; font-family: Arial; }
+    body { margin:0; font-family:Arial; }
 
     #title {
-      padding: 12px;
-      font-size: 20px;
-      font-weight: bold;
-      text-align: center;
-      background: #2c3e50;
-      color: white;
+      padding:12px;
+      background:#2c3e50;
+      color:white;
+      text-align:center;
+      font-weight:bold;
     }
 
     #map {
@@ -31,193 +30,204 @@
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+<script src="https://unpkg.com/leaflet.control.layers.tree/L.Control.Layers.Tree.js"></script>
 
 <script>
 
-var map = L.map('map').setView([-7.8, 112.0], 7);
+var map = L.map('map').setView([-7.8,112],7);
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '&copy; OpenStreetMap'
-}).addTo(map);
-
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
 // =========================
 // COLOR MP
 // =========================
 const mpColors = {};
 
-function stringToColor(str) {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+function stringToColor(str){
+  let hash=0;
+  for(let i=0;i<str.length;i++){
+    hash=str.charCodeAt(i)+((hash<<5)-hash);
   }
-  const hue = Math.abs(hash) % 360;
-  return `hsl(${hue}, 75%, 50%)`;
+  return `hsl(${Math.abs(hash)%360},75%,50%)`;
 }
 
-function getColor(mp) {
-  if (!mp || mp === "VACANT") return "black";
-  if (!mpColors[mp]) mpColors[mp] = stringToColor(mp);
+function getColor(mp){
+  if(!mp || mp==="VACANT") return "black";
+  if(!mpColors[mp]) mpColors[mp]=stringToColor(mp);
   return mpColors[mp];
 }
-
-
-// =========================
-// LAYER GROUPS
-// =========================
-const pointLayerGroup = L.layerGroup().addTo(map);
-const spvLayerGroup = L.layerGroup().addTo(map);
-const teknisiLayerGroup = L.layerGroup().addTo(map);
-
 
 // =========================
 // LOAD DATA
 // =========================
 fetch("https://script.google.com/macros/s/AKfycbzjGd2pLlx_jP4MpxqWUy0YEUYKI725VMUr5jKNymtVj0eyr112614DELiHM0GqZMkH/exec")
-.then(res => res.json())
-.then(data => {
+.then(res=>res.json())
+.then(data=>{
 
-  // =========================
-  // TITIK
-  // =========================
-  const pointLayer = L.geoJSON(data, {
-    pointToLayer: function(feature, latlng) {
-      return L.circleMarker(latlng, {
-        radius: 8,
-        fillColor: getColor(feature.properties["NAMA MP"]),
-        color: "#000",
-        weight: 1,
-        fillOpacity: 0.85
-      });
-    },
-    onEachFeature: function(feature, layer) {
-      layer.bindPopup(`
-        <b>${feature.properties["NAMA STORE"]}</b><br>
-        SPV: ${feature.properties["NAMA SUPERVISOR M&R"]}<br>
-        Teknisi: ${feature.properties["NAMA TEKNISI"]}<br>
-        MP: ${feature.properties["NAMA MP"]}
-      `);
-    }
-  });
-
-  pointLayer.addTo(pointLayerGroup);
-
-  // =========================
-  // GROUP SPV
-  // =========================
+  const mpGroups = {};
+  const teknisiGroups = {};
   const spvGroups = {};
 
-  data.features.forEach(f => {
-    const spv = f.properties["NAMA SUPERVISOR M&R"];
-    if (!spv || spv === "VACANT") return;
-
-    if (!spvGroups[spv]) spvGroups[spv] = [];
-    spvGroups[spv].push(f);
-  });
-
   // =========================
-  // GROUP TEKNISI
+  // GROUPING
   // =========================
-  const teknisiGroups = {};
-
-  data.features.forEach(f => {
+  data.features.forEach(f=>{
+    const mp = f.properties["NAMA MP"];
     const teknisi = f.properties["NAMA TEKNISI"];
-    if (!teknisi || teknisi === "VACANT") return;
+    const spv = f.properties["NAMA SUPERVISOR M&R"];
 
-    if (!teknisiGroups[teknisi]) teknisiGroups[teknisi] = [];
-    teknisiGroups[teknisi].push(f);
-  });
+    // MP
+    if(!mpGroups[mp]) mpGroups[mp]=[];
+    mpGroups[mp].push(f);
 
+    // Teknisi (skip VACANT)
+    if(teknisi && teknisi!=="VACANT"){
+      if(!teknisiGroups[teknisi]) teknisiGroups[teknisi]=[];
+      teknisiGroups[teknisi].push(f);
+    }
 
-  // =========================
-  // SUB LAYER CONTROL OBJECT
-  // =========================
-  const overlayMaps = {
-    "Titik": pointLayerGroup
-  };
-
-
-  // =========================
-  // SPV POLYGON
-  // =========================
-  Object.keys(spvGroups).forEach(spv => {
-
-    if (spvGroups[spv].length < 3) return;
-
-    const fc = {
-      type: "FeatureCollection",
-      features: spvGroups[spv]
-    };
-
-    const hull = turf.convex(fc);
-
-    if (hull) {
-      const layer = L.geoJSON(hull, {
-        interactive: false,
-        style: {
-          color: "#333",
-          weight: 2,
-          fillColor: "#999",
-          fillOpacity: 0.2
-        }
-      });
-
-      layer.addTo(spvLayerGroup);
-
-      overlayMaps["SPV: " + spv] = layer;
+    // SPV (skip VACANT)
+    if(spv && spv!=="VACANT"){
+      if(!spvGroups[spv]) spvGroups[spv]=[];
+      spvGroups[spv].push(f);
     }
   });
 
+  // =========================
+  // MP (POINT)
+  // =========================
+  const mpChildren = [];
+
+  Object.keys(mpGroups).forEach(mp=>{
+
+    const layer = L.geoJSON(mpGroups[mp],{
+      pointToLayer:(f,latlng)=>{
+        return L.circleMarker(latlng,{
+          radius:8,
+          fillColor:getColor(mp),
+          color:"#000",
+          weight:1,
+          fillOpacity:0.85
+        });
+      },
+      onEachFeature:(f,l)=>{
+        l.bindPopup(`
+          <b>${f.properties["NAMA STORE"]}</b><br>
+          MP: ${f.properties["NAMA MP"]}<br>
+          Teknisi: ${f.properties["NAMA TEKNISI"]}<br>
+          SPV: ${f.properties["NAMA SUPERVISOR M&R"]}
+        `);
+      }
+    });
+
+    layer.addTo(map);
+
+    mpChildren.push({
+      label: mp,
+      layer: layer
+    });
+
+  });
 
   // =========================
   // TEKNISI POLYGON
   // =========================
-  Object.keys(teknisiGroups).forEach(teknisi => {
+  const teknisiChildren = [];
 
-    if (teknisiGroups[teknisi].length < 3) return;
+  Object.keys(teknisiGroups).forEach(t=>{
 
-    const fc = {
-      type: "FeatureCollection",
-      features: teknisiGroups[teknisi]
-    };
+    if(teknisiGroups[t].length<3) return;
 
-    const hull = turf.convex(fc);
+    const hull = turf.convex({
+      type:"FeatureCollection",
+      features:teknisiGroups[t]
+    });
 
-    if (hull) {
-      const layer = L.geoJSON(hull, {
-        interactive: false,
-        style: {
-          color: "#ff6600",
-          weight: 2,
-          fillColor: "#ffcc99",
-          fillOpacity: 0.25
-        }
-      });
+    if(!hull) return;
 
-      layer.addTo(teknisiLayerGroup);
+    const layer = L.geoJSON(hull,{
+      interactive:false,
+      style:{
+        color:"#ff6600",
+        fillColor:"#ffcc99",
+        fillOpacity:0.25
+      }
+    });
 
-      overlayMaps["Teknisi: " + teknisi] = layer;
-    }
+    layer.addTo(map);
+
+    teknisiChildren.push({
+      label: t,
+      layer: layer
+    });
+
   });
 
+  // =========================
+  // SPV POLYGON
+  // =========================
+  const spvChildren = [];
+
+  Object.keys(spvGroups).forEach(s=>{
+
+    if(spvGroups[s].length<3) return;
+
+    const hull = turf.convex({
+      type:"FeatureCollection",
+      features:spvGroups[s]
+    });
+
+    if(!hull) return;
+
+    const layer = L.geoJSON(hull,{
+      interactive:false,
+      style:{
+        color:"#333",
+        fillColor:"#999",
+        fillOpacity:0.2
+      }
+    });
+
+    layer.addTo(map);
+
+    spvChildren.push({
+      label: s,
+      layer: layer
+    });
+
+  });
 
   // =========================
-  // ADD MAIN GROUP TO CONTROL
+  // TREE CONTROL
   // =========================
-  overlayMaps["Polygon SPV"] = spvLayerGroup;
-  overlayMaps["Polygon Teknisi"] = teknisiLayerGroup;
+  const tree = {
+    label: "Layer Control",
+    children: [
 
+      {
+        label: "MP",
+        selectAllCheckbox: true,
+        children: mpChildren
+      },
 
-  // =========================
-  // CONTROL
-  // =========================
-  L.control.layers(null, overlayMaps, {
+      {
+        label: "Area Teknisi",
+        selectAllCheckbox: true,
+        children: teknisiChildren
+      },
+
+      {
+        label: "Area SPV",
+        selectAllCheckbox: true,
+        children: spvChildren
+      }
+
+    ]
+  };
+
+  L.control.layers.tree(null, tree, {
     collapsed: false
   }).addTo(map);
-
-
-  // AUTO ZOOM
-  map.fitBounds(pointLayer.getBounds());
 
 });
 
