@@ -48,7 +48,7 @@ var map = L.map('map').setView([-7.8,112],7);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
 // =========================
-// COLOR
+// COLOR GENERATOR
 // =========================
 const colorCache = {};
 
@@ -77,6 +77,7 @@ fetch("https://script.google.com/macros/s/AKfycbzjGd2pLlx_jP4MpxqWUy0YEUYKI725VM
   const teknisiGroups = {};
   const spvGroups = {};
 
+  // GROUPING
   data.features.forEach(f=>{
     const mp = f.properties["NAMA MP"];
     const teknisi = f.properties["NAMA TEKNISI"];
@@ -132,7 +133,7 @@ fetch("https://script.google.com/macros/s/AKfycbzjGd2pLlx_jP4MpxqWUy0YEUYKI725VM
   });
 
   // =========================
-  // TEKNISI POLYGON (HOVER)
+  // TEKNISI POLYGON (HOVER ONLY)
   // =========================
   const teknisiChildren = [];
 
@@ -150,7 +151,7 @@ fetch("https://script.google.com/macros/s/AKfycbzjGd2pLlx_jP4MpxqWUy0YEUYKI725VM
     if(!hull) return;
 
     const layer = L.geoJSON(hull,{
-      interactive:true, // 🔥 aktif
+      interactive:true,
       style:{
         color:color,
         fillColor:color,
@@ -161,7 +162,9 @@ fetch("https://script.google.com/macros/s/AKfycbzjGd2pLlx_jP4MpxqWUy0YEUYKI725VM
       sticky:true,
       direction:"center"
     })
-    .bindPopup(`<b>Teknisi</b><br>${t}`)
+    .on('click', function(e){
+      L.DomEvent.stopPropagation(e); // 🔥 FIX
+    })
     .addTo(map);
 
     teknisiChildren.push({
@@ -171,7 +174,7 @@ fetch("https://script.google.com/macros/s/AKfycbzjGd2pLlx_jP4MpxqWUy0YEUYKI725VM
   });
 
   // =========================
-  // SPV POLYGON (HOVER)
+  // SPV POLYGON (HOVER ONLY)
   // =========================
   const spvChildren = [];
 
@@ -200,7 +203,9 @@ fetch("https://script.google.com/macros/s/AKfycbzjGd2pLlx_jP4MpxqWUy0YEUYKI725VM
       sticky:true,
       direction:"center"
     })
-    .bindPopup(`<b>SPV</b><br>${s}`)
+    .on('click', function(e){
+      L.DomEvent.stopPropagation(e); // 🔥 FIX
+    })
     .addTo(map);
 
     spvChildren.push({
@@ -221,7 +226,9 @@ fetch("https://script.google.com/macros/s/AKfycbzjGd2pLlx_jP4MpxqWUy0YEUYKI725VM
     ]
   };
 
-  L.control.layers.tree(null, tree, {collapsed:false}).addTo(map);
+  L.control.layers.tree(null, tree, {
+    collapsed:false
+  }).addTo(map);
 
 });
 
