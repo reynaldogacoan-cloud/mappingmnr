@@ -113,7 +113,7 @@ fetch("https://script.google.com/macros/s/AKfycbzjGd2pLlx_jP4MpxqWUy0YEUYKI725VM
           fillColor:color,
           color:"#000",
           weight:1,
-          fillOpacity:0.85
+          fillOpacity:0.9
         });
       },
       onEachFeature:(f,l)=>{
@@ -133,8 +133,8 @@ fetch("https://script.google.com/macros/s/AKfycbzjGd2pLlx_jP4MpxqWUy0YEUYKI725VM
   });
 
   // =========================
-  // TEKNISI POLYGON (HOVER ONLY)
-  // =========================
+  // TEKNISI POLYGON (NON INTERACTIVE)
+// =========================
   const teknisiChildren = [];
 
   Object.keys(teknisiGroups).forEach(t=>{
@@ -151,21 +151,14 @@ fetch("https://script.google.com/macros/s/AKfycbzjGd2pLlx_jP4MpxqWUy0YEUYKI725VM
     if(!hull) return;
 
     const layer = L.geoJSON(hull,{
-      interactive:true,
+      interactive:false, // 🔥 tidak ganggu klik
       style:{
         color:color,
         fillColor:color,
-        fillOpacity:0.15
+        fillOpacity:0.08,
+        weight:1.5
       }
-    })
-    .bindTooltip(`Teknisi: ${t}`, {
-      sticky:true,
-      direction:"center"
-    })
-    .on('click', function(e){
-      L.DomEvent.stopPropagation(e); // 🔥 FIX
-    })
-    .addTo(map);
+    }).addTo(map);
 
     teknisiChildren.push({
       label:`<span class="legend-color" style="background:${color}"></span>${t}`,
@@ -174,7 +167,7 @@ fetch("https://script.google.com/macros/s/AKfycbzjGd2pLlx_jP4MpxqWUy0YEUYKI725VM
   });
 
   // =========================
-  // SPV POLYGON (HOVER ONLY)
+  // SPV POLYGON (NON INTERACTIVE)
   // =========================
   const spvChildren = [];
 
@@ -192,21 +185,14 @@ fetch("https://script.google.com/macros/s/AKfycbzjGd2pLlx_jP4MpxqWUy0YEUYKI725VM
     if(!hull) return;
 
     const layer = L.geoJSON(hull,{
-      interactive:true,
+      interactive:false, // 🔥 penting
       style:{
         color:color,
         fillColor:color,
-        fillOpacity:0.1
+        fillOpacity:0.06,
+        weight:1.5
       }
-    })
-    .bindTooltip(`SPV: ${s}`, {
-      sticky:true,
-      direction:"center"
-    })
-    .on('click', function(e){
-      L.DomEvent.stopPropagation(e); // 🔥 FIX
-    })
-    .addTo(map);
+    }).addTo(map);
 
     spvChildren.push({
       label:`<span class="legend-color" style="background:${color}"></span>${s}`,
