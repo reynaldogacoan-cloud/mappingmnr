@@ -48,22 +48,23 @@ var map = L.map('map').setView([-7.8,112],7);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
 // =========================
-// COLOR GENERATOR
+// COLOR GENERATOR (ANTI MIRIP)
 // =========================
-const colorCache = {};
-
-function stringToColor(str){
-  let hash=0;
-  for(let i=0;i<str.length;i++){
-    hash=str.charCodeAt(i)+((hash<<5)-hash);
-  }
-  return `hsl(${Math.abs(hash)%360},70%,50%)`;
-}
+const colorIndex = {};
+let currentIndex = 0;
 
 function getColor(key){
   if(!key || key==="VACANT") return "black";
-  if(!colorCache[key]) colorCache[key]=stringToColor(key);
-  return colorCache[key];
+
+  if(colorIndex[key] !== undefined){
+    return `hsl(${colorIndex[key]}, 70%, 50%)`;
+  }
+
+  const hue = (currentIndex * 137.508) % 360; // golden angle
+  colorIndex[key] = hue;
+  currentIndex++;
+
+  return `hsl(${hue}, 70%, 50%)`;
 }
 
 // =========================
@@ -130,11 +131,12 @@ fetch("https://script.google.com/macros/s/AKfycbzjGd2pLlx_jP4MpxqWUy0YEUYKI725VM
       label:`<span class="legend-color" style="background:${color}"></span>${mp}`,
       layer
     });
+
   });
 
   // =========================
-  // TEKNISI POLYGON (NON INTERACTIVE)
-// =========================
+  // TEKNISI POLYGON
+  // =========================
   const teknisiChildren = [];
 
   Object.keys(teknisiGroups).forEach(t=>{
@@ -151,11 +153,11 @@ fetch("https://script.google.com/macros/s/AKfycbzjGd2pLlx_jP4MpxqWUy0YEUYKI725VM
     if(!hull) return;
 
     const layer = L.geoJSON(hull,{
-      interactive:false, // 🔥 tidak ganggu klik
+      interactive:false,
       style:{
         color:color,
         fillColor:color,
-        fillOpacity:0.08,
+        fillOpacity:0.1,
         weight:1.5
       }
     }).addTo(map);
@@ -164,10 +166,11 @@ fetch("https://script.google.com/macros/s/AKfycbzjGd2pLlx_jP4MpxqWUy0YEUYKI725VM
       label:`<span class="legend-color" style="background:${color}"></span>${t}`,
       layer
     });
+
   });
 
   // =========================
-  // SPV POLYGON (NON INTERACTIVE)
+  // SPV POLYGON
   // =========================
   const spvChildren = [];
 
@@ -185,7 +188,7 @@ fetch("https://script.google.com/macros/s/AKfycbzjGd2pLlx_jP4MpxqWUy0YEUYKI725VM
     if(!hull) return;
 
     const layer = L.geoJSON(hull,{
-      interactive:false, // 🔥 penting
+      interactive:false,
       style:{
         color:color,
         fillColor:color,
@@ -198,6 +201,7 @@ fetch("https://script.google.com/macros/s/AKfycbzjGd2pLlx_jP4MpxqWUy0YEUYKI725VM
       label:`<span class="legend-color" style="background:${color}"></span>${s}`,
       layer
     });
+
   });
 
   // =========================
