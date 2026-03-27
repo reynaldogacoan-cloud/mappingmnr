@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Map Manpower</title>
+  <title>Mapping MNR</title>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -9,19 +9,38 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
   <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+    }
+
+    #title {
+      padding: 12px;
+      font-size: 20px;
+      font-weight: bold;
+      text-align: center;
+      background: #2c3e50;
+      color: white;
+    }
+
     #map {
-      height: 100vh;
+      height: calc(100vh - 50px);
     }
   </style>
 </head>
 <body>
 
+<div id="title">Mapping MNR</div>
 <div id="map"></div>
 
-<!-- Leaflet JS -->
+<!-- Leaflet -->
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
+<!-- Turf.js (untuk polygon) -->
+<script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+
 <script>
+
   // =========================
   // INIT MAP
   // =========================
@@ -31,9 +50,8 @@
     attribution: '&copy; OpenStreetMap'
   }).addTo(map);
 
-
   // =========================
-  // COLOR SYSTEM (AUTO MP)
+  // COLOR MP
   // =========================
   const mpColors = {};
 
@@ -47,27 +65,22 @@
   }
 
   function getColor(mp) {
-    if (!mp || mp === "VACANT") {
-      return "black";
-    }
-
-    if (!mpColors[mp]) {
-      mpColors[mp] = stringToColor(mp);
-    }
-
+    if (!mp || mp === "VACANT") return "black";
+    if (!mpColors[mp]) mpColors[mp] = stringToColor(mp);
     return mpColors[mp];
   }
 
-
   // =========================
-  // LOAD DATA (GANTI URL)
+  // LOAD DATA
   // =========================
   fetch("https://script.google.com/macros/s/AKfycbzjGd2pLlx_jP4MpxqWUy0YEUYKI725VMUr5jKNymtVj0eyr112614DELiHM0GqZMkH/exec")
-    .then(response => response.json())
+    .then(res => res.json())
     .then(data => {
 
-      const layer = L.geoJSON(data, {
-
+      // =========================
+      // 1. TAMPILKAN TITIK
+      // =========================
+      const pointLayer = L.geoJSON(data, {
         pointToLayer: function(feature, latlng) {
           return L.circleMarker(latlng, {
             radius: 8,
@@ -77,25 +90,65 @@
             fillOpacity: 0.85
           });
         },
-
         onEachFeature: function(feature, layer) {
           layer.bindPopup(`
             <b>${feature.properties["NAMA STORE"]}</b><br>
-            MP: ${feature.properties["NAMA MP"]}<br>
-            Teknisi: ${feature.properties["NAMA TEKNISI"]}<br>
-            Supervisor: ${feature.properties["NAMA SUPERVISOR M&R"]}
+            SPV: ${feature.properties["NAMA SUPERVISOR M&R"]}<br>
+            MP: ${feature.properties["NAMA MP"]}
           `);
         }
-
       }).addTo(map);
 
-      // AUTO ZOOM ke semua titik
-      map.fitBounds(layer.getBounds());
 
-    })
-    .catch(err => {
-      console.error("Error load data:", err);
-      alert("Gagal load data. Cek URL API kamu.");
+      // =========================
+      // 2. GROUP BY SPV
+      // =========================
+      const spvGroups = {};
+
+      data.features.forEach(f => {
+        const spv = f.properties["NAMA SUPERVISOR M&R"];
+        if (!spvGroups[spv]) spvGroups[spv] = [];
+        spvGroups[spv].push(f);
+      });
+
+
+      // =========================
+      // 3. BUAT POLYGON (CONVEX HULL)
+      // =========================
+      Object.keys(spvGroups).forEach(spv => {
+
+        const features = spvGroups[spv];
+
+        if (features.length < 3) return; // minimal 3 titik
+
+        const fc = {
+          type: "FeatureCollection",
+          features: features
+        };
+
+        const hull = turf.convex(fc);
+
+        if (hull) {
+          L.geoJSON(hull, {
+            style: {
+              color: "#333",
+              weight: 2,
+              fillColor: "#999",
+              fillOpacity: 0.2
+            }
+          })
+          .bindPopup("SPV: " + spv)
+          .addTo(map);
+        }
+
+      });
+
+
+      // =========================
+      // AUTO ZOOM
+      // =========================
+      map.fitBounds(pointLayer.getBounds());
+
     });
 
 </script>
