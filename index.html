@@ -5,14 +5,10 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
   <style>
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-    }
+    body { margin: 0; font-family: Arial; }
 
     #title {
       padding: 12px;
@@ -33,163 +29,197 @@
 <div id="title">Mapping MNR</div>
 <div id="map"></div>
 
-<!-- Leaflet -->
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-
-<!-- Turf.js -->
 <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 
 <script>
 
-  // =========================
-  // INIT MAP
-  // =========================
-  var map = L.map('map').setView([-7.8, 112.0], 7);
+var map = L.map('map').setView([-7.8, 112.0], 7);
 
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap'
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap'
+}).addTo(map);
+
+
+// =========================
+// COLOR MP
+// =========================
+const mpColors = {};
+
+function stringToColor(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const hue = Math.abs(hash) % 360;
+  return `hsl(${hue}, 75%, 50%)`;
+}
+
+function getColor(mp) {
+  if (!mp || mp === "VACANT") return "black";
+  if (!mpColors[mp]) mpColors[mp] = stringToColor(mp);
+  return mpColors[mp];
+}
+
+
+// =========================
+// LAYER GROUPS
+// =========================
+const pointLayerGroup = L.layerGroup().addTo(map);
+const spvLayerGroup = L.layerGroup().addTo(map);
+const teknisiLayerGroup = L.layerGroup().addTo(map);
+
+
+// =========================
+// LOAD DATA
+// =========================
+fetch("https://script.google.com/macros/s/AKfycbzjGd2pLlx_jP4MpxqWUy0YEUYKI725VMUr5jKNymtVj0eyr112614DELiHM0GqZMkH/exec")
+.then(res => res.json())
+.then(data => {
+
+  // =========================
+  // TITIK
+  // =========================
+  const pointLayer = L.geoJSON(data, {
+    pointToLayer: function(feature, latlng) {
+      return L.circleMarker(latlng, {
+        radius: 8,
+        fillColor: getColor(feature.properties["NAMA MP"]),
+        color: "#000",
+        weight: 1,
+        fillOpacity: 0.85
+      });
+    },
+    onEachFeature: function(feature, layer) {
+      layer.bindPopup(`
+        <b>${feature.properties["NAMA STORE"]}</b><br>
+        SPV: ${feature.properties["NAMA SUPERVISOR M&R"]}<br>
+        Teknisi: ${feature.properties["NAMA TEKNISI"]}<br>
+        MP: ${feature.properties["NAMA MP"]}
+      `);
+    }
+  });
+
+  pointLayer.addTo(pointLayerGroup);
+
+  // =========================
+  // GROUP SPV
+  // =========================
+  const spvGroups = {};
+
+  data.features.forEach(f => {
+    const spv = f.properties["NAMA SUPERVISOR M&R"];
+    if (!spv || spv === "VACANT") return;
+
+    if (!spvGroups[spv]) spvGroups[spv] = [];
+    spvGroups[spv].push(f);
+  });
+
+  // =========================
+  // GROUP TEKNISI
+  // =========================
+  const teknisiGroups = {};
+
+  data.features.forEach(f => {
+    const teknisi = f.properties["NAMA TEKNISI"];
+    if (!teknisi || teknisi === "VACANT") return;
+
+    if (!teknisiGroups[teknisi]) teknisiGroups[teknisi] = [];
+    teknisiGroups[teknisi].push(f);
+  });
+
+
+  // =========================
+  // SUB LAYER CONTROL OBJECT
+  // =========================
+  const overlayMaps = {
+    "Titik": pointLayerGroup
+  };
+
+
+  // =========================
+  // SPV POLYGON
+  // =========================
+  Object.keys(spvGroups).forEach(spv => {
+
+    if (spvGroups[spv].length < 3) return;
+
+    const fc = {
+      type: "FeatureCollection",
+      features: spvGroups[spv]
+    };
+
+    const hull = turf.convex(fc);
+
+    if (hull) {
+      const layer = L.geoJSON(hull, {
+        interactive: false,
+        style: {
+          color: "#333",
+          weight: 2,
+          fillColor: "#999",
+          fillOpacity: 0.2
+        }
+      });
+
+      layer.addTo(spvLayerGroup);
+
+      overlayMaps["SPV: " + spv] = layer;
+    }
+  });
+
+
+  // =========================
+  // TEKNISI POLYGON
+  // =========================
+  Object.keys(teknisiGroups).forEach(teknisi => {
+
+    if (teknisiGroups[teknisi].length < 3) return;
+
+    const fc = {
+      type: "FeatureCollection",
+      features: teknisiGroups[teknisi]
+    };
+
+    const hull = turf.convex(fc);
+
+    if (hull) {
+      const layer = L.geoJSON(hull, {
+        interactive: false,
+        style: {
+          color: "#ff6600",
+          weight: 2,
+          fillColor: "#ffcc99",
+          fillOpacity: 0.25
+        }
+      });
+
+      layer.addTo(teknisiLayerGroup);
+
+      overlayMaps["Teknisi: " + teknisi] = layer;
+    }
+  });
+
+
+  // =========================
+  // ADD MAIN GROUP TO CONTROL
+  // =========================
+  overlayMaps["Polygon SPV"] = spvLayerGroup;
+  overlayMaps["Polygon Teknisi"] = teknisiLayerGroup;
+
+
+  // =========================
+  // CONTROL
+  // =========================
+  L.control.layers(null, overlayMaps, {
+    collapsed: false
   }).addTo(map);
 
-  // =========================
-  // COLOR MP (AUTO)
-  // =========================
-  const mpColors = {};
 
-  function stringToColor(str) {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      hash = str.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    const hue = Math.abs(hash) % 360;
-    return `hsl(${hue}, 75%, 50%)`;
-  }
+  // AUTO ZOOM
+  map.fitBounds(pointLayer.getBounds());
 
-  function getColor(mp) {
-    if (!mp || mp === "VACANT") return "black";
-    if (!mpColors[mp]) mpColors[mp] = stringToColor(mp);
-    return mpColors[mp];
-  }
-
-  // =========================
-  // LOAD DATA
-  // =========================
-  fetch("https://script.google.com/macros/s/AKfycbzjGd2pLlx_jP4MpxqWUy0YEUYKI725VMUr5jKNymtVj0eyr112614DELiHM0GqZMkH/exec")
-    .then(res => res.json())
-    .then(data => {
-
-      // =========================
-      // 1. TAMPILKAN TITIK
-      // =========================
-      const pointLayer = L.geoJSON(data, {
-        pointToLayer: function(feature, latlng) {
-          return L.circleMarker(latlng, {
-            radius: 8,
-            fillColor: getColor(feature.properties["NAMA MP"]),
-            color: "#000",
-            weight: 1,
-            fillOpacity: 0.85
-          });
-        },
-        onEachFeature: function(feature, layer) {
-          layer.bindPopup(`
-            <b>${feature.properties["NAMA STORE"]}</b><br>
-            SPV: ${feature.properties["NAMA SUPERVISOR M&R"]}<br>
-            Teknisi: ${feature.properties["NAMA TEKNISI"]}<br>
-            MP: ${feature.properties["NAMA MP"]}
-          `);
-        }
-      }).addTo(map);
-
-      // =========================
-      // 2. GROUP BY SPV
-      // =========================
-      const spvGroups = {};
-
-      data.features.forEach(f => {
-        const spv = f.properties["NAMA SUPERVISOR M&R"];
-        if (!spvGroups[spv]) spvGroups[spv] = [];
-        spvGroups[spv].push(f);
-      });
-
-      // =========================
-      // 3. POLYGON SPV
-      // =========================
-      Object.keys(spvGroups).forEach(spv => {
-
-        const features = spvGroups[spv];
-        if (features.length < 3) return;
-
-        const fc = {
-          type: "FeatureCollection",
-          features: features
-        };
-
-        const hull = turf.convex(fc);
-
-        if (hull) {
-          L.geoJSON(hull, {
-            interactive: false,
-            style: {
-              color: "#333",
-              weight: 2,
-              fillColor: "#999",
-              fillOpacity: 0.2
-            }
-          }).addTo(map);
-        }
-
-      });
-
-      // =========================
-      // 4. GROUP BY TEKNISI
-      // =========================
-      const teknisiGroups = {};
-
-      data.features.forEach(f => {
-        const teknisi = f.properties["NAMA TEKNISI"];
-        if (!teknisiGroups[teknisi]) teknisiGroups[teknisi] = [];
-        teknisiGroups[teknisi].push(f);
-      });
-
-      // =========================
-      // 5. POLYGON TEKNISI
-      // =========================
-      Object.keys(teknisiGroups).forEach(teknisi => {
-
-        const features = teknisiGroups[teknisi];
-        if (features.length < 3) return;
-
-        const fc = {
-          type: "FeatureCollection",
-          features: features
-        };
-
-        const hull = turf.convex(fc);
-
-        if (hull) {
-          L.geoJSON(hull, {
-            interactive: false,
-            style: {
-              color: "#ff6600",
-              weight: 2,
-              fillColor: "#ffcc99",
-              fillOpacity: 0.25
-            }
-          }).addTo(map);
-        }
-
-      });
-
-      // =========================
-      // AUTO ZOOM
-      // =========================
-      map.fitBounds(pointLayer.getBounds());
-
-    })
-    .catch(err => {
-      console.error(err);
-      alert("Gagal load data, cek URL API kamu");
-    });
+});
 
 </script>
 
