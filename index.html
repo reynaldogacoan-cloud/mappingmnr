@@ -48,7 +48,7 @@ var map = L.map('map').setView([-7.8,112],7);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
 // =========================
-// COLOR GENERATOR
+// COLOR
 // =========================
 const colorCache = {};
 
@@ -77,7 +77,6 @@ fetch("https://script.google.com/macros/s/AKfycbzjGd2pLlx_jP4MpxqWUy0YEUYKI725VM
   const teknisiGroups = {};
   const spvGroups = {};
 
-  // GROUPING
   data.features.forEach(f=>{
     const mp = f.properties["NAMA MP"];
     const teknisi = f.properties["NAMA TEKNISI"];
@@ -124,19 +123,16 @@ fetch("https://script.google.com/macros/s/AKfycbzjGd2pLlx_jP4MpxqWUy0YEUYKI725VM
           SPV: ${f.properties["NAMA SUPERVISOR M&R"]}
         `);
       }
-    });
-
-    layer.addTo(map);
+    }).addTo(map);
 
     mpChildren.push({
-      label: `<span class="legend-color" style="background:${color}"></span>${mp}`,
-      layer: layer
+      label:`<span class="legend-color" style="background:${color}"></span>${mp}`,
+      layer
     });
-
   });
 
   // =========================
-  // TEKNISI POLYGON + LABEL
+  // TEKNISI POLYGON (HOVER)
   // =========================
   const teknisiChildren = [];
 
@@ -153,42 +149,29 @@ fetch("https://script.google.com/macros/s/AKfycbzjGd2pLlx_jP4MpxqWUy0YEUYKI725VM
 
     if(!hull) return;
 
-    const polygon = L.geoJSON(hull,{
-      interactive:false,
+    const layer = L.geoJSON(hull,{
+      interactive:true, // 🔥 aktif
       style:{
         color:color,
         fillColor:color,
-        fillOpacity:0.2
+        fillOpacity:0.15
       }
-    });
-
-    const center = polygon.getBounds().getCenter();
-
-    const label = L.marker(center,{
-      interactive:false,
-      icon:L.divIcon({
-        html:`<div style="
-          background:rgba(255,255,255,0.7);
-          padding:2px 6px;
-          border-radius:4px;
-          font-size:11px;
-          border:1px solid ${color};
-          color:${color};
-        ">${t}</div>`
-      })
-    });
-
-    const group = L.layerGroup([polygon, label]).addTo(map);
+    })
+    .bindTooltip(`Teknisi: ${t}`, {
+      sticky:true,
+      direction:"center"
+    })
+    .bindPopup(`<b>Teknisi</b><br>${t}`)
+    .addTo(map);
 
     teknisiChildren.push({
-      label: `<span class="legend-color" style="background:${color}"></span>${t}`,
-      layer: group
+      label:`<span class="legend-color" style="background:${color}"></span>${t}`,
+      layer
     });
-
   });
 
   // =========================
-  // SPV POLYGON + LABEL
+  // SPV POLYGON (HOVER)
   // =========================
   const spvChildren = [];
 
@@ -205,71 +188,40 @@ fetch("https://script.google.com/macros/s/AKfycbzjGd2pLlx_jP4MpxqWUy0YEUYKI725VM
 
     if(!hull) return;
 
-    const polygon = L.geoJSON(hull,{
-      interactive:false,
+    const layer = L.geoJSON(hull,{
+      interactive:true,
       style:{
         color:color,
         fillColor:color,
-        fillOpacity:0.2
+        fillOpacity:0.1
       }
-    });
-
-    const center = polygon.getBounds().getCenter();
-
-    const label = L.marker(center,{
-      interactive:false,
-      icon:L.divIcon({
-        html:`<div style="
-          background:rgba(255,255,255,0.7);
-          padding:2px 6px;
-          border-radius:4px;
-          font-size:11px;
-          border:1px solid ${color};
-          color:${color};
-        ">${s}</div>`
-      })
-    });
-
-    const group = L.layerGroup([polygon, label]).addTo(map);
+    })
+    .bindTooltip(`SPV: ${s}`, {
+      sticky:true,
+      direction:"center"
+    })
+    .bindPopup(`<b>SPV</b><br>${s}`)
+    .addTo(map);
 
     spvChildren.push({
-      label: `<span class="legend-color" style="background:${color}"></span>${s}`,
-      layer: group
+      label:`<span class="legend-color" style="background:${color}"></span>${s}`,
+      layer
     });
-
   });
 
   // =========================
   // TREE CONTROL
   // =========================
   const tree = {
-    label: "Layer Control",
-    children: [
-
-      {
-        label: "MP",
-        selectAllCheckbox:true,
-        children: mpChildren
-      },
-
-      {
-        label: "Area Teknisi",
-        selectAllCheckbox:true,
-        children: teknisiChildren
-      },
-
-      {
-        label: "Area SPV",
-        selectAllCheckbox:true,
-        children: spvChildren
-      }
-
+    label:"Layer Control",
+    children:[
+      { label:"MP", selectAllCheckbox:true, children:mpChildren },
+      { label:"Area Teknisi", selectAllCheckbox:true, children:teknisiChildren },
+      { label:"Area SPV", selectAllCheckbox:true, children:spvChildren }
     ]
   };
 
-  L.control.layers.tree(null, tree, {
-    collapsed:false
-  }).addTo(map);
+  L.control.layers.tree(null, tree, {collapsed:false}).addTo(map);
 
 });
 
