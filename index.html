@@ -124,6 +124,16 @@ fetch("https://script.google.com/macros/s/AKfycbwfLtLF5Yd7grYt8Pc-N6FQywHZkw16tG
           Teknisi: ${f.properties["NAMA TEKNISI"]}<br>
           SPV: ${f.properties["NAMA SUPERVISOR M&R"]}
         `);
+          // TOOLTIP selalu tampil
+        l.bindTooltip(
+          f.properties["NAMA STORE"],
+          {
+            permanent: true,
+            direction: "top",
+            offset: [0, -10],
+            className: "label-store"
+          }
+        );
       }
     }).addTo(map);
 
