@@ -3,7 +3,9 @@
 <head>
   <title>Mapping MNR</title>
   <meta charset="utf-8" />
-
+ // =========================
+// API PETA
+// =========================
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
   <link rel="stylesheet" href="https://unpkg.com/leaflet.control.layers.tree/L.Control.Layers.Tree.css"/>
 
@@ -48,7 +50,7 @@ var map = L.map('map').setView([-7.8,112],7);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
 // =========================
-// COLOR GENERATOR (ANTI MIRIP)
+// COLOR GENERATOR
 // =========================
 const colorIndex = {};
 let currentIndex = 0;
@@ -68,7 +70,7 @@ function getColor(key){
 }
 
 // =========================
-// LOAD DATA
+// LOAD DATA (API Appscript)
 // =========================
 fetch("https://script.google.com/macros/s/AKfycbwfLtLF5Yd7grYt8Pc-N6FQywHZkw16tGKCm0uauFENlSrFvXspeeUyKgUAzbsCyt4/exec")
 .then(res=>res.json())
